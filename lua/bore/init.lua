@@ -1,9 +1,11 @@
+local base64 = require("bore.base64")
+
 local M = {}
 
 -- TODO: implement telescope integration
 
 -- https://github.com/ibhagwan/fzf-lua/blob/f7f54dd685cfdf5469a763d3a00392b9291e75f2/lua/fzf-lua/utils.lua#L372-L404
-function M.get_visual_selection()
+function M.get_selected_positions()
 	-- this will exit visual mode
 	-- use 'gv' to reselect the text
 	local _, csrow, cscol, cerow, cecol
@@ -30,13 +32,27 @@ function M.get_visual_selection()
 	if cecol < cscol then
 		cscol, cecol = cecol, cscol
 	end
-	local lines = vim.fn.getline(csrow, cerow)
+
+	return {
+		start_row = csrow,
+		start_col = cscol,
+		end_row = cerow,
+		end_col = cecol,
+	}
+end
+
+-- Get the visually selected text
+function M.get_visual_selection()
+	local pos = M.get_selected_positions()
+	local lines = vim.fn.getline(pos.start_row, pos.end_row)
+
 	local n = M.tbl_length(lines)
 	if n <= 0 then
 		return ""
 	end
-	lines[n] = string.sub(lines[n], 1, cecol)
-	lines[1] = string.sub(lines[1], cscol)
+
+	lines[n] = string.sub(lines[n], 1, pos.end_col)
+	lines[1] = string.sub(lines[1], pos.start_col)
 	return table.concat(lines, "\n")
 end
 
@@ -48,30 +64,50 @@ function M.tbl_length(T)
 	return count
 end
 
-M.copy_selected = function()
-	-- Get the visually selected lines
-	local selected_text = M.get_visual_selection()
-
+-- Utility function to use `bore copy` to copy the selected text to the clipboard
+function M.copy_text(text)
 	-- Copy the selected text to the clipboard using `bore copy`
-	if selected_text ~= "" then
+	if text ~= "" then
 		-- Use a shell command to copy the selected text to the clipboard while preserving newlines
-		local shell_cmd = "echo -n " .. vim.fn.shellescape(selected_text) .. " | bore copy"
+		local shell_cmd = "echo '"
+			.. vim.fn.shellescape(base64.encode(text, nil, true))
+			.. "' | bore copy --format=base64"
 		vim.fn.system(shell_cmd)
 	end
 end
 
--- Paste the most recent text from the clipboard
-M.paste_most_recent = function()
-	-- FIX: pasting in visual mode
+-- Copy the visually selected text to the clipboard
+function M.copy_selected()
+	-- Get the visually selected lines
+	local selected_text = M.get_visual_selection()
+	M.copy_text(selected_text)
+end
+
+-- Get the most recent text from the clipboard
+function M.get_last_item()
 	local paste_output = vim.fn.system("bore paste")
-	vim.api.nvim_put(vim.split(paste_output, "\n"), "", true, true)
+	if vim.v.shell_error == 0 then
+		-- Remove the ^A character from the output
+		paste_output = string.gsub(paste_output, "\001", "")
+		return paste_output
+	end
+	return nil
+end
+
+-- Paste the most recent text from the clipboard
+function M.paste_last()
+	local text = M.get_last_item()
+	if text == nil then
+		return
+	end
+
+	vim.api.nvim_put(vim.split(text, "\n"), "", true, true)
 end
 
 -- Copy a single line in normal mode
-M.copy_current_line = function()
+function M.copy_current_line()
 	local current_line = vim.api.nvim_get_current_line()
-	current_line = vim.fn.escape(current_line, "'")
-	vim.fn.system("echo '" .. current_line .. "' | bore copy")
+	M.copy_text(current_line)
 end
 
 M.setup = function(opts)
@@ -84,7 +120,7 @@ M.setup = function(opts)
 	})
 
 	vim.api.nvim_create_user_command("BorePaste", function()
-		M.paste_most_recent()
+		M.paste_last()
 	end, {
 		range = true,
 		desc = "Paste text from clipboard using bore",
