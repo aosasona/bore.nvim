@@ -5,8 +5,14 @@ local M = {}
 
 -- Returns a table matching the `vim.g.clipboard` "provider"
 function M.get_provider()
-	local copy = function(text, _)
+	local copy = function(lines, _)
+		local text = table.concat(lines, "\n")
 		M.copy_text(text)
+	end
+
+	local paste = function()
+		local text = M.get_last_item() or ""
+		return vim.split(text, "\n")
 	end
 
 	return {
@@ -16,8 +22,8 @@ function M.get_provider()
 			["*"] = copy,
 		},
 		paste = {
-			["+"] = M.get_last_item,
-			["*"] = M.get_last_item,
+			["+"] = paste,
+			["*"] = paste,
 		},
 	}
 end
