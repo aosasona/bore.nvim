@@ -16,7 +16,7 @@ function M.get_provider()
 	end
 
 	return {
-		name = "Bore",
+		name = "bore",
 		copy = {
 			["+"] = copy,
 			["*"] = copy,
