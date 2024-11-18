@@ -25,7 +25,7 @@ Install this plugin with your preferred package manager (as long as it can insta
 },
 ```
 
-This will provide the `BoreCopy` and `BorePaste` command with default bindings to `<leader>y`, `<leader>yy` (in normal mode) and `<leader>p` for copying and pasting directly from the `bore` clipboard.
+This will provide the `Bore copy` and `Bore paste` command with default bindings to `<leader>y`, `<leader>yy` (in normal mode) and `<leader>p` for copying and pasting directly from the `bore` clipboard.
 
 # Configuration
 
